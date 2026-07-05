@@ -1,7 +1,4 @@
-export enum UserRole {
-  Admin = 'admin',
-  Morador = 'morador',
-}
+import type { UserRole } from './user.enum.ts'
 
 export interface User {
   id: string

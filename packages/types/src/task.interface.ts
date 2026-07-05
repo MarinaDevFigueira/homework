@@ -1,9 +1,4 @@
-export enum TaskStatus {
-  Pending = 'pending',
-  InProgress = 'in_progress',
-  Done = 'done',
-  Overdue = 'overdue',
-}
+import type { TaskStatus } from './task.enum.ts'
 
 export interface Task {
   id: string

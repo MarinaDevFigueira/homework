@@ -1,9 +1,4 @@
-export enum RecurringFrequency {
-  Daily = 'daily',
-  Weekly = 'weekly',
-  Biweekly = 'biweekly',
-  Monthly = 'monthly',
-}
+import type { RecurringFrequency } from './recurring.enum.ts'
 
 export interface RecurringTemplate {
   id: string

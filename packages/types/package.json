@@ -4,12 +4,15 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./user": "./src/user.ts",
-    "./task": "./src/task.ts",
-    "./resource": "./src/resource.ts",
-    "./purchase": "./src/purchase.ts",
-    "./recurring": "./src/recurring.ts",
-    "./api": "./src/api.ts"
+    "./user.enum": "./src/user.enum.ts",
+    "./user.interface": "./src/user.interface.ts",
+    "./task.enum": "./src/task.enum.ts",
+    "./task.interface": "./src/task.interface.ts",
+    "./resource.interface": "./src/resource.interface.ts",
+    "./purchase.interface": "./src/purchase.interface.ts",
+    "./recurring.enum": "./src/recurring.enum.ts",
+    "./recurring.interface": "./src/recurring.interface.ts",
+    "./api.types": "./src/api.types.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
