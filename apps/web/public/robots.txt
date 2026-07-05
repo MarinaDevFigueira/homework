@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /$
+Disallow: /admin/
+Disallow: /tasks/
+Disallow: /resources/
+Disallow: /shopping/
+Disallow: /schedule/
+Disallow: /people/
+Disallow: /settings/
+Disallow: /reports/
+
+Sitemap: https://homework.app/sitemap.xml

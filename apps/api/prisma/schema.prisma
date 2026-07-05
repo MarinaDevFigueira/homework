@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  role         String   @default("morador")
+  passwordHash String
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+
+  tasksAssigned      Task[]             @relation("TaskAssignee")
+  tasksCreated       Task[]             @relation("TaskCreator")
+  resourcesCreated   Resource[]
+  purchases          Purchase[]
+  recurringTemplates RecurringTemplate[]
+}
+
+model Task {
+  id                  String    @id @default(cuid())
+  title               String
+  description         String?
+  status              String    @default("pending")
+  dueDate             DateTime?
+  completedAt         DateTime?
+  isRecurring         Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+
+  assignedToId        String
+  assignedTo          User      @relation("TaskAssignee", fields: [assignedToId], references: [id])
+
+  createdById         String
+  createdBy           User      @relation("TaskCreator", fields: [createdById], references: [id])
+
+  recurringTemplateId String?
+  recurringTemplate   RecurringTemplate? @relation(fields: [recurringTemplateId], references: [id])
+
+  resourceBookings    ResourceBooking[]
+}
+
+model Resource {
+  id        String   @id @default(cuid())
+  name      String
+  type      String
+  capacity  Int      @default(0)
+  location  String?
+  createdAt DateTime @default(now())
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  bookings ResourceBooking[]
+}
+
+model ResourceBooking {
+  id         String   @id @default(cuid())
+  startAt    DateTime
+  endAt      DateTime
+  createdAt  DateTime @default(now())
+
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id])
+
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id])
+
+  userId String
+}
+
+model Purchase {
+  id         String   @id @default(cuid())
+  title      String
+  amount     Float
+  month      String
+  splitWith  String   @default("[]")
+  receiptUrl String?
+  createdAt  DateTime @default(now())
+
+  paidById String
+  paidBy   User   @relation(fields: [paidById], references: [id])
+}
+
+model RecurringTemplate {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  frequency   String
+  nextDue     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  assignedToId String
+  assignedTo   User   @relation(fields: [assignedToId], references: [id])
+
+  tasks Task[]
+}

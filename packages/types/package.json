@@ -1,0 +1,20 @@
+{
+  "name": "@homework/types",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./user": "./src/user.ts",
+    "./task": "./src/task.ts",
+    "./resource": "./src/resource.ts",
+    "./purchase": "./src/purchase.ts",
+    "./recurring": "./src/recurring.ts",
+    "./api": "./src/api.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^6"
+  }
+}
