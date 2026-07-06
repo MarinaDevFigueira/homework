@@ -42,6 +42,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
         <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('homework-theme');var d=t==='dark'||(t==='system'||!t)&&window.matchMedia('(prefers-color-scheme:dark)').matches;if(d)document.documentElement.classList.add('dark')})()`,
+          }}
+        />
+        <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: webAppSchemaJson }}
         />

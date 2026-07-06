@@ -9,7 +9,4 @@ export interface User {
   createdAt: string
 }
 
-export interface UserSession {
-  user: User
-  token: string
-}
+export type UserSession = User

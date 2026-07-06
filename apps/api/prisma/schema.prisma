@@ -48,15 +48,27 @@ model Task {
 model Resource {
   id        String   @id @default(cuid())
   name      String
-  type      String
-  capacity  Int      @default(0)
-  location  String?
+  category  String   @default("outro")
+  unit      String   @default("un")
+  notes     String?
+  minUnits  Int      @default(2)
   createdAt DateTime @default(now())
 
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
-  bookings ResourceBooking[]
+  instances ResourceInstance[]
+  bookings  ResourceBooking[]
+}
+
+model ResourceInstance {
+  id        String   @id @default(cuid())
+  capacity  Int      @default(100)
+  notes     String?
+  updatedAt DateTime @default(now()) @updatedAt
+
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
 }
 
 model ResourceBooking {

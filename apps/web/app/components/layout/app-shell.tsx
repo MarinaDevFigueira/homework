@@ -1,4 +1,4 @@
-import { Outlet } from "react-router"
+import { useNavigate, Outlet } from "react-router"
 import {
   SidebarNav,
   SidebarNavLogo,
@@ -13,6 +13,9 @@ import {
 import { Topbar, TopbarBrand, TopbarLogo, TopbarActions } from "./topbar"
 import { BottomNav, BottomNavItem } from "./bottom-nav"
 import { Button } from "~/components/ui/button"
+import { useAuth } from "~/lib/hooks/use-auth"
+import { authStore } from "~/lib/stores/auth.store"
+import { authService } from "~/lib/services/auth.service"
 
 const primaryNavItems = [
   { to: "/",            icon: "✓",  label: "Tarefas" },
@@ -37,6 +40,17 @@ const mobileNavItems = [
 ]
 
 export function AppShell() {
+  const navigate = useNavigate()
+  const { session } = useAuth()
+
+  async function handleLogout() {
+    await authService.logout()
+    authStore.clear()
+    navigate("/login")
+  }
+
+  const firstNameInitial = session?.name?.[0]?.toUpperCase() ?? "?"
+
   return (
     <div className="flex min-h-dvh bg-background">
       <SidebarNav>
@@ -64,9 +78,23 @@ export function AppShell() {
         </SidebarNavSection>
 
         <SidebarNavFooter>
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2">
-            <span>👤</span>
-            <span className="truncate">Minha conta</span>
+          <div className="flex items-center gap-2 px-1 py-1 mb-1">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground text-xs font-bold">
+              {firstNameInitial}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium truncate">{session?.name ?? "..."}</p>
+              <p className="text-[0.625rem] text-muted-foreground truncate">{session?.email ?? ""}</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+            onClick={handleLogout}
+          >
+            <span>↩</span>
+            <span>Sair</span>
           </Button>
         </SidebarNavFooter>
       </SidebarNav>
