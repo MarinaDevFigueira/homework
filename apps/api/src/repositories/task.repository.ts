@@ -117,9 +117,10 @@ export class TaskRepository {
     const now = new Date()
 
     const existing = await prisma.task.findUnique({ where: { id }, select: { startedAt: true } })
-    const hasStartTime = existing?.startedAt != null
+    const startedAt = existing?.startedAt ?? null
+    const hasStartTime = startedAt !== null
     const durationMinutes = hasStartTime
-      ? Math.round((now.getTime() - existing.startedAt.getTime()) / 60000)
+      ? Math.round((now.getTime() - startedAt.getTime()) / 60000)
       : null
 
     const row = await prisma.$transaction(async (transaction) => {
