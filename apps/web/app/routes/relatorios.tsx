@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useMemo } from "react"
 import { useLoaderData } from "react-router"
 import type { LoaderFunctionArgs } from "react-router"
 import type { Task } from "@homework/types/task.interface"
@@ -15,16 +15,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function Relatorios() {
   const { tasks: loaderTasks } = useLoaderData<typeof loader>()
+  useMemo(() => { tasksStore.setAll(loaderTasks) }, [loaderTasks])
   const tasks = useTasks()
 
-  useEffect(() => {
-    tasksStore.setAll(loaderTasks)
-  }, [loaderTasks])
-
   const totalTasks = tasks.length
+
+  // Filtra e conta tarefas por cada status
   const completedTasks = tasks.filter((task) => task.status === TaskStatus.Done).length
   const pendingTasks = tasks.filter((task) => task.status === TaskStatus.Pending).length
   const overdueTasks = tasks.filter((task) => task.status === TaskStatus.Overdue).length
+
+  // Calcula a taxa de conclusão: (concluídas / total) * 100; evita divisão por zero
   const completionRate =
     totalTasks > 0 ? ((completedTasks / totalTasks) * 100).toFixed(0) : "0"
 

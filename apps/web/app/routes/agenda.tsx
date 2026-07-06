@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react"
+import { useMemo, useState } from "react"
 import { useLoaderData } from "react-router"
 import type { LoaderFunctionArgs } from "react-router"
 import type { Task } from "@homework/types/task.interface"
 import { TaskStatus } from "@homework/types/task.enum"
+import type { AgendaFilterType } from "~/routes/agenda.types"
 import { listTasks } from "~/lib/services/tasks.service.server"
 import { tasksStore } from "~/lib/stores/tasks.store"
 import { useTasks } from "~/lib/hooks/use-tasks"
@@ -17,8 +18,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return { tasks }
 }
 
-type FilterType = "Esta semana" | "Este mês" | "Tudo"
-
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
   const firstInitial = parts[0]?.[0] ?? ""
@@ -26,13 +25,6 @@ function getInitials(name: string): string {
   const isDifferentParts = parts.length > 1
   const initials = isDifferentParts ? firstInitial + lastInitial : firstInitial
   return initials.toUpperCase()
-}
-
-function formatDueDate(isoString: string | null): string {
-  const isNullDate = !isoString
-  if (isNullDate) return "Sem prazo"
-  const date = new Date(isoString)
-  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
 }
 
 function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
@@ -53,7 +45,8 @@ function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
       })
     }
 
-    if (!grouped.has(key)) {
+    const hasKey = grouped.has(key)
+    if (!hasKey) {
       grouped.set(key, [])
     }
     grouped.get(key)!.push(task)
@@ -62,7 +55,7 @@ function groupTasksByDate(tasks: Task[]): Map<string, Task[]> {
   return grouped
 }
 
-function filterTasksByRange(tasks: Task[], filterType: FilterType): Task[] {
+function filterTasksByRange(tasks: Task[], filterType: AgendaFilterType): Task[] {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -109,16 +102,13 @@ const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   [TaskStatus.Overdue]: "Atrasada",
 }
 
-const FILTERS: FilterType[] = ["Esta semana", "Este mês", "Tudo"]
+const FILTERS: AgendaFilterType[] = ["Esta semana", "Este mês", "Tudo"]
 
 export default function Agenda() {
   const { tasks: loaderTasks } = useLoaderData<typeof loader>()
+  useMemo(() => { tasksStore.setAll(loaderTasks) }, [loaderTasks])
   const tasks = useTasks()
-  const [activeFilter, setActiveFilter] = useState<FilterType>("Tudo")
-
-  useEffect(() => {
-    tasksStore.setAll(loaderTasks)
-  }, [loaderTasks])
+  const [activeFilter, setActiveFilter] = useState<AgendaFilterType>("Tudo")
 
   const filteredTasks = filterTasksByRange(tasks, activeFilter)
   const groupedTasks = groupTasksByDate(filteredTasks)

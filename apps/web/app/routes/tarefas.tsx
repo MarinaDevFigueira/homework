@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useMemo, useState } from "react"
 import { useLoaderData } from "react-router"
 import type { LoaderFunctionArgs } from "react-router"
 import type { Task } from "@homework/types/task.interface"
@@ -43,6 +43,8 @@ import {
   ResourceCardPercent,
 } from "~/components/ui/resource-card"
 
+// Loader do React Router: executa no servidor (SSR) antes de renderizar a página
+// Carrega as tarefas do banco de dados e as passa como props ao componente
 export async function loader({ request }: LoaderFunctionArgs) {
   const tasks = await listTasks(request)
   return { tasks }
@@ -51,6 +53,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 const FILTERS = ["Todas", "Pendentes", "Em progresso", "Concluídas", "Atrasadas"] as const
 const CAPACITY_OPTIONS = [0, 25, 50, 75, 100] as const
 
+// Mapeamento: textos de filtro (PT-BR) → enum TaskStatus ou null para "Todas"
 const STATUS_FILTER_MAP: Record<(typeof FILTERS)[number], TaskStatus | null> = {
   "Todas": null,
   "Pendentes": TaskStatus.Pending,
@@ -59,6 +62,7 @@ const STATUS_FILTER_MAP: Record<(typeof FILTERS)[number], TaskStatus | null> = {
   "Atrasadas": TaskStatus.Overdue,
 }
 
+// Mapeamento: enum TaskStatus → variante de Badge (para estilização CSS)
 const TASK_STATUS_TO_BADGE: Record<TaskStatus, "pending" | "progress" | "done" | "overdue"> = {
   [TaskStatus.Pending]: "pending",
   [TaskStatus.InProgress]: "progress",
@@ -66,6 +70,7 @@ const TASK_STATUS_TO_BADGE: Record<TaskStatus, "pending" | "progress" | "done" |
   [TaskStatus.Overdue]: "overdue",
 }
 
+// Mapeamento: enum TaskStatus → rótulo legível em PT-BR
 const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   [TaskStatus.Pending]: "Pendente",
   [TaskStatus.InProgress]: "Em progresso",
@@ -73,6 +78,7 @@ const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   [TaskStatus.Overdue]: "Atrasada",
 }
 
+// Extrai iniciais de um nome: "João Silva" → "JS", "João" → "J"
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/)
   const firstInitial = parts[0]?.[0] ?? ""
@@ -91,6 +97,7 @@ function formatDueDate(isoString: string | null): string {
 
 export default function Tarefas() {
   const { tasks: loaderTasks } = useLoaderData<typeof loader>()
+  useMemo(() => { tasksStore.setAll(loaderTasks) }, [loaderTasks])
   const tasks = useTasks()
   const [activeFilter, setActiveFilter] = useState<(typeof FILTERS)[number]>("Todas")
   const [isCreating, setIsCreating] = useState(false)
@@ -98,10 +105,7 @@ export default function Tarefas() {
   const [newDescription, setNewDescription] = useState("")
   const [reporter, setReporter] = useState<ResourceReporterState | null>(null)
 
-  useEffect(() => {
-    tasksStore.setAll(loaderTasks)
-  }, [loaderTasks])
-
+  // Filtra tarefas: se filterStatus é null ("Todas"), mostra tudo; senão, filtra por status
   const filterStatus = STATUS_FILTER_MAP[activeFilter]
   const visibleTasks = filterStatus
     ? tasks.filter((task) => task.status === filterStatus)
@@ -162,20 +166,25 @@ export default function Tarefas() {
     setReporter(null)
   }
 
+  // Cria uma nova tarefa: valida inputs, envia à API, sincroniza com o store
   async function handleCreate() {
+    // Validação 1: título não pode ser vazio ou só espaços
     const isTitleEmpty = newTitle.trim() === ""
     if (isTitleEmpty) return
 
+    // Validação 2: deve haver um usuário autenticado
     const currentUser = authStore.state
     const hasCurrentUser = !!currentUser
     if (!hasCurrentUser) return
 
+    // Chamada à API com trimming dos campos
     const created = await tasksService.create({
       title: newTitle.trim(),
       description: newDescription.trim() || undefined,
       assignedToId: currentUser.id,
     })
 
+    // Se sucesso, atualiza o store e fecha o dialog
     const isSuccess = !!created
     if (isSuccess) {
       tasksStore.add(created)

@@ -1,4 +1,4 @@
-import { useNavigate, Outlet } from "react-router"
+import { useNavigate, useNavigation, Outlet } from "react-router"
 import {
   SidebarNav,
   SidebarNavLogo,
@@ -13,7 +13,9 @@ import {
 import { Topbar, TopbarBrand, TopbarLogo, TopbarActions } from "./topbar"
 import { BottomNav, BottomNavItem } from "./bottom-nav"
 import { Button } from "~/components/ui/button"
+import { PageSkeleton } from "~/components/ui/page-skeleton"
 import { useAuth } from "~/lib/hooks/use-auth"
+import { useTheme } from "~/lib/hooks/use-theme"
 import { authStore } from "~/lib/stores/auth.store"
 import { authService } from "~/lib/services/auth.service"
 
@@ -41,7 +43,18 @@ const mobileNavItems = [
 
 export function AppShell() {
   const navigate = useNavigate()
+  const navigation = useNavigation()
   const { session } = useAuth()
+  const { resolvedTheme, setTheme } = useTheme()
+
+  const pendingPath = navigation.location?.pathname ?? ""
+  const isNavigatingToPage = navigation.state === "loading" && !!navigation.location
+
+  function handleThemeToggle() {
+    const isDarkTheme = resolvedTheme === "dark"
+    const nextTheme = isDarkTheme ? "light" : "dark"
+    setTheme(nextTheme)
+  }
 
   async function handleLogout() {
     await authService.logout()
@@ -106,6 +119,9 @@ export function AppShell() {
             Homework
           </TopbarBrand>
           <TopbarActions>
+            <Button variant="ghost" size="icon" aria-label="Alternar tema" onClick={handleThemeToggle}>
+              {resolvedTheme === "dark" ? "☀️" : "🌙"}
+            </Button>
             <Button variant="ghost" size="icon" aria-label="Notificações">
               🔔
             </Button>
@@ -114,7 +130,7 @@ export function AppShell() {
 
         <main className="flex-1 overflow-y-auto px-4 py-4 pb-[calc(3.5rem+5rem)] lg:px-6 lg:py-8 lg:pb-16">
           <div className="mx-auto w-full max-w-3xl">
-            <Outlet />
+            {isNavigatingToPage ? <PageSkeleton path={pendingPath} /> : <Outlet />}
           </div>
         </main>
       </div>
