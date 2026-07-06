@@ -1,6 +1,6 @@
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { requireAuth } from '../middleware/auth.ts'
+import { requireAuth, requireAdmin } from '../middleware/auth.ts'
 import { TaskStatus } from '@homework/types/task.enum'
 import { taskRepository } from '../repositories/task.repository.ts'
 import { ok, created, notFound, forbidden } from '../lib/response.ts'
@@ -11,12 +11,12 @@ const createTaskSchema = z.object({
   description: z.string().optional(),
   assignedToId: z.string().min(1),
   dueDate: z.string().datetime({ offset: true }).optional(),
+  resourceIds: z.array(z.string()).optional(),
 })
 
 const updateTaskSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().optional(),
-  status: z.nativeEnum(TaskStatus).optional(),
   assignedToId: z.string().min(1).optional(),
   dueDate: z.string().datetime({ offset: true }).nullable().optional(),
 })
@@ -24,6 +24,17 @@ const updateTaskSchema = z.object({
 const listQuerySchema = z.object({
   status: z.nativeEnum(TaskStatus).optional(),
   assignedToId: z.string().optional(),
+})
+
+const finishSchema = z.object({
+  resourceSnapshots: z.array(
+    z.object({
+      instanceId: z.string(),
+      resourceId: z.string(),
+      capacityBefore: z.number().int().min(0).max(100),
+      capacityAfter: z.number().int().min(0).max(100),
+    }),
+  ).default([]),
 })
 
 export const taskRoutes = createRouter()
@@ -36,17 +47,14 @@ taskRoutes.get('/', zValidator('query', listQuerySchema), async (context) => {
   return context.json(ok(tasks))
 })
 
-taskRoutes.post('/', zValidator('json', createTaskSchema), async (context) => {
+taskRoutes.post('/', requireAdmin, zValidator('json', createTaskSchema), async (context) => {
   const userId = context.get('userId')
-  const { title, description, assignedToId, dueDate } = context.req.valid('json')
+  const { title, description, assignedToId, dueDate, resourceIds } = context.req.valid('json')
   const dueDateValue = dueDate !== undefined ? new Date(dueDate) : undefined
-  const task = await taskRepository.create({
-    title,
-    description,
-    assignedToId,
-    createdById: userId,
-    dueDate: dueDateValue,
-  })
+  const task = await taskRepository.create(
+    { title, description, assignedToId, createdById: userId, dueDate: dueDateValue },
+    resourceIds ?? [],
+  )
   return context.json(created(task), 201)
 })
 
@@ -62,19 +70,14 @@ taskRoutes.put('/:id', zValidator('json', updateTaskSchema), async (context) => 
     return context.json(notFound('Tarefa não encontrada'), 404)
   }
 
-  const isOwnerOrAssignee =
-    existing.createdById === userId || existing.assignedToId === userId
+  const isOwnerOrAssignee = existing.createdById === userId || existing.assignedToId === userId
   if (!isOwnerOrAssignee) {
     return context.json(forbidden('Acesso negado'), 403)
   }
 
-  const isCompletingNow = updates.status === TaskStatus.Done
-  const completedAt = isCompletingNow ? new Date() : existing.completedAt
-
   const updateData = {
     ...(updates.title !== undefined && { title: updates.title }),
     ...(updates.description !== undefined && { description: updates.description }),
-    ...(updates.status !== undefined && { status: updates.status, completedAt }),
     ...(updates.assignedToId !== undefined && { assignedToId: updates.assignedToId }),
     ...(updates.dueDate !== undefined && {
       dueDate: updates.dueDate !== null ? new Date(updates.dueDate) : null,
@@ -85,7 +88,94 @@ taskRoutes.put('/:id', zValidator('json', updateTaskSchema), async (context) => 
   return context.json(ok(task))
 })
 
-taskRoutes.delete('/:id', async (context) => {
+taskRoutes.post('/:id/start', async (context) => {
+  const userId = context.get('userId')
+  const taskId = context.req.param('id')
+
+  const existing = await taskRepository.findById(taskId)
+  const isNotFound = !existing
+  if (isNotFound) return context.json(notFound('Tarefa não encontrada'), 404)
+
+  const isAssigneeOrCreator = existing.assignedToId === userId || existing.createdById === userId
+  if (!isAssigneeOrCreator) return context.json(forbidden('Acesso negado'), 403)
+
+  const isNotPending = existing.status !== TaskStatus.Pending
+  if (isNotPending) return context.json({ success: false, error: 'Tarefa não está pendente' }, 400)
+
+  const task = await taskRepository.start(taskId)
+  return context.json(ok(task))
+})
+
+taskRoutes.post('/:id/pause', async (context) => {
+  const userId = context.get('userId')
+  const taskId = context.req.param('id')
+
+  const existing = await taskRepository.findById(taskId)
+  const isNotFound = !existing
+  if (isNotFound) return context.json(notFound('Tarefa não encontrada'), 404)
+
+  const isAssigneeOrCreator = existing.assignedToId === userId || existing.createdById === userId
+  if (!isAssigneeOrCreator) return context.json(forbidden('Acesso negado'), 403)
+
+  const isNotInProgress = existing.status !== TaskStatus.InProgress
+  if (isNotInProgress) return context.json({ success: false, error: 'Tarefa não está em progresso' }, 400)
+
+  const task = await taskRepository.pause(taskId)
+  return context.json(ok(task))
+})
+
+taskRoutes.post('/:id/resume', async (context) => {
+  const userId = context.get('userId')
+  const taskId = context.req.param('id')
+
+  const existing = await taskRepository.findById(taskId)
+  const isNotFound = !existing
+  if (isNotFound) return context.json(notFound('Tarefa não encontrada'), 404)
+
+  const isAssigneeOrCreator = existing.assignedToId === userId || existing.createdById === userId
+  if (!isAssigneeOrCreator) return context.json(forbidden('Acesso negado'), 403)
+
+  const isNotPaused = existing.status !== TaskStatus.Paused
+  if (isNotPaused) return context.json({ success: false, error: 'Tarefa não está pausada' }, 400)
+
+  const task = await taskRepository.resume(taskId)
+  return context.json(ok(task))
+})
+
+taskRoutes.post('/:id/cancel', requireAdmin, async (context) => {
+  const taskId = context.req.param('id')
+
+  const existing = await taskRepository.findById(taskId)
+  const isNotFound = !existing
+  if (isNotFound) return context.json(notFound('Tarefa não encontrada'), 404)
+
+  const isTerminal = existing.status === TaskStatus.Done || existing.status === TaskStatus.Cancelled
+  if (isTerminal) return context.json({ success: false, error: 'Tarefa já finalizada' }, 400)
+
+  const task = await taskRepository.cancel(taskId)
+  return context.json(ok(task))
+})
+
+taskRoutes.post('/:id/finish', zValidator('json', finishSchema), async (context) => {
+  const userId = context.get('userId')
+  const taskId = context.req.param('id')
+  const { resourceSnapshots } = context.req.valid('json')
+
+  const existing = await taskRepository.findById(taskId)
+  const isNotFound = !existing
+  if (isNotFound) return context.json(notFound('Tarefa não encontrada'), 404)
+
+  const isAssigneeOrCreator = existing.assignedToId === userId || existing.createdById === userId
+  if (!isAssigneeOrCreator) return context.json(forbidden('Acesso negado'), 403)
+
+  const isActive = existing.status === TaskStatus.InProgress || existing.status === TaskStatus.Paused
+  if (!isActive) return context.json({ success: false, error: 'Tarefa não pode ser finalizada' }, 400)
+
+  const task = await taskRepository.finish(taskId, resourceSnapshots)
+  return context.json(ok(task))
+})
+
+taskRoutes.delete('/:id', requireAdmin, async (context) => {
   const userId = context.get('userId')
   const taskId = context.req.param('id')
 

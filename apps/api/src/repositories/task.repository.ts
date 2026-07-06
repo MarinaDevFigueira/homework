@@ -1,7 +1,12 @@
 import { prisma } from '../db/client.ts'
 import { TaskStatus } from '@homework/types/task.enum'
 import type { Task } from '@homework/types/task.interface'
-import type { TaskRow, TaskCreateData, TaskUpdateData, TaskListFilters } from './task.types.ts'
+import type { TaskRow, TaskCreateData, TaskUpdateData, TaskListFilters, ResourceSnapshotData } from './task.types.ts'
+
+const TASK_INCLUDE = {
+  assignedTo: { select: { name: true } },
+  taskResources: { select: { resourceId: true } },
+} as const
 
 function mapTask(row: TaskRow): Task {
   const task = {
@@ -14,9 +19,13 @@ function mapTask(row: TaskRow): Task {
     createdById: row.createdById,
     dueDate: row.dueDate?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
+    startedAt: row.startedAt?.toISOString() ?? null,
+    finishedAt: row.finishedAt?.toISOString() ?? null,
+    durationMinutes: row.durationMinutes,
     isRecurring: row.isRecurring,
     recurringTemplateId: row.recurringTemplateId,
     createdAt: row.createdAt.toISOString(),
+    resourceIds: row.taskResources.map((taskResource) => taskResource.resourceId),
   }
   return task
 }
@@ -30,7 +39,7 @@ export class TaskRepository {
 
     const rows = await prisma.task.findMany({
       where: whereClause,
-      include: { assignedTo: { select: { name: true } } },
+      include: TASK_INCLUDE,
       orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
     })
 
@@ -41,10 +50,19 @@ export class TaskRepository {
     return prisma.task.findUnique({ where: { id } })
   }
 
-  async create(data: TaskCreateData): Promise<Task> {
+  async create(data: TaskCreateData, resourceIds: string[] = []): Promise<Task> {
     const row = await prisma.task.create({
-      data,
-      include: { assignedTo: { select: { name: true } } },
+      data: {
+        title: data.title,
+        description: data.description,
+        assignedToId: data.assignedToId,
+        createdById: data.createdById,
+        dueDate: data.dueDate,
+        taskResources: {
+          create: resourceIds.map((resourceId) => ({ resourceId })),
+        },
+      },
+      include: TASK_INCLUDE,
     })
     return mapTask(row)
   }
@@ -53,8 +71,86 @@ export class TaskRepository {
     const row = await prisma.task.update({
       where: { id },
       data,
-      include: { assignedTo: { select: { name: true } } },
+      include: TASK_INCLUDE,
     })
+    return mapTask(row)
+  }
+
+  async start(id: string): Promise<Task> {
+    const now = new Date()
+    const row = await prisma.task.update({
+      where: { id },
+      data: { status: TaskStatus.InProgress, startedAt: now },
+      include: TASK_INCLUDE,
+    })
+    return mapTask(row)
+  }
+
+  async pause(id: string): Promise<Task> {
+    const row = await prisma.task.update({
+      where: { id },
+      data: { status: TaskStatus.Paused },
+      include: TASK_INCLUDE,
+    })
+    return mapTask(row)
+  }
+
+  async resume(id: string): Promise<Task> {
+    const row = await prisma.task.update({
+      where: { id },
+      data: { status: TaskStatus.InProgress },
+      include: TASK_INCLUDE,
+    })
+    return mapTask(row)
+  }
+
+  async cancel(id: string): Promise<Task> {
+    const row = await prisma.task.update({
+      where: { id },
+      data: { status: TaskStatus.Cancelled },
+      include: TASK_INCLUDE,
+    })
+    return mapTask(row)
+  }
+
+  async finish(id: string, snapshots: ResourceSnapshotData[]): Promise<Task> {
+    const now = new Date()
+
+    const existing = await prisma.task.findUnique({ where: { id }, select: { startedAt: true } })
+    const hasStartTime = existing?.startedAt != null
+    const durationMinutes = hasStartTime
+      ? Math.round((now.getTime() - existing.startedAt.getTime()) / 60000)
+      : null
+
+    const row = await prisma.$transaction(async (transaction) => {
+      for (const snapshot of snapshots) {
+        await transaction.resourceSnapshot.create({
+          data: {
+            taskId: id,
+            resourceId: snapshot.resourceId,
+            resourceInstanceId: snapshot.instanceId,
+            capacityBefore: snapshot.capacityBefore,
+            capacityAfter: snapshot.capacityAfter,
+          },
+        })
+        await transaction.resourceInstance.update({
+          where: { id: snapshot.instanceId },
+          data: { capacity: snapshot.capacityAfter },
+        })
+      }
+
+      return transaction.task.update({
+        where: { id },
+        data: {
+          status: TaskStatus.Done,
+          finishedAt: now,
+          completedAt: now,
+          durationMinutes,
+        },
+        include: TASK_INCLUDE,
+      })
+    })
+
     return mapTask(row)
   }
 

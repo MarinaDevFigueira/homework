@@ -30,6 +30,9 @@ model Task {
   status              String    @default("pending")
   dueDate             DateTime?
   completedAt         DateTime?
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  durationMinutes     Int?
   isRecurring         Boolean   @default(false)
   createdAt           DateTime  @default(now())
 
@@ -43,6 +46,34 @@ model Task {
   recurringTemplate   RecurringTemplate? @relation(fields: [recurringTemplateId], references: [id])
 
   resourceBookings    ResourceBooking[]
+  taskResources       TaskResource[]
+  resourceSnapshots   ResourceSnapshot[]
+}
+
+model TaskResource {
+  taskId     String
+  resourceId String
+
+  task     Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, resourceId])
+}
+
+model ResourceSnapshot {
+  id             String   @id @default(cuid())
+  capacityBefore Int
+  capacityAfter  Int
+  createdAt      DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  resourceId String
+  resource   Resource @relation(fields: [resourceId], references: [id])
+
+  resourceInstanceId String
+  resourceInstance   ResourceInstance @relation(fields: [resourceInstanceId], references: [id])
 }
 
 model Resource {
@@ -57,8 +88,10 @@ model Resource {
   createdById String
   createdBy   User   @relation(fields: [createdById], references: [id])
 
-  instances ResourceInstance[]
-  bookings  ResourceBooking[]
+  instances         ResourceInstance[]
+  bookings          ResourceBooking[]
+  taskResources     TaskResource[]
+  resourceSnapshots ResourceSnapshot[]
 }
 
 model ResourceInstance {
@@ -69,13 +102,15 @@ model ResourceInstance {
 
   resourceId String
   resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  resourceSnapshots ResourceSnapshot[]
 }
 
 model ResourceBooking {
-  id         String   @id @default(cuid())
-  startAt    DateTime
-  endAt      DateTime
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  startAt   DateTime
+  endAt     DateTime
+  createdAt DateTime @default(now())
 
   resourceId String
   resource   Resource @relation(fields: [resourceId], references: [id])

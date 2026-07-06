@@ -10,9 +10,13 @@ export interface Task {
   createdById: string
   dueDate: string | null
   completedAt: string | null
+  startedAt: string | null
+  finishedAt: string | null
+  durationMinutes: number | null
   isRecurring: boolean
   recurringTemplateId: string | null
   createdAt: string
+  resourceIds: string[]
 }
 
 export interface CreateTaskInput {
@@ -22,6 +26,7 @@ export interface CreateTaskInput {
   dueDate?: string
   isRecurring?: boolean
   recurringTemplateId?: string
+  resourceIds?: string[]
 }
 
 export interface UpdateTaskInput {

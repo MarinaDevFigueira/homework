@@ -91,14 +91,18 @@ function filterTasksByRange(tasks: Task[], filterType: AgendaFilterType): Task[]
 const TASK_STATUS_TO_BADGE: Record<TaskStatus, "pending" | "progress" | "done" | "overdue"> = {
   [TaskStatus.Pending]: "pending",
   [TaskStatus.InProgress]: "progress",
+  [TaskStatus.Paused]: "pending",
   [TaskStatus.Done]: "done",
+  [TaskStatus.Cancelled]: "overdue",
   [TaskStatus.Overdue]: "overdue",
 }
 
 const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   [TaskStatus.Pending]: "Pendente",
   [TaskStatus.InProgress]: "Em progresso",
+  [TaskStatus.Paused]: "Pausada",
   [TaskStatus.Done]: "Concluída",
+  [TaskStatus.Cancelled]: "Cancelada",
   [TaskStatus.Overdue]: "Atrasada",
 }
 

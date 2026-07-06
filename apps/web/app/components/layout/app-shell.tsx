@@ -1,3 +1,4 @@
+import { useRef, useState, useEffect } from "react"
 import { useNavigate, useNavigation, Outlet } from "react-router"
 import {
   SidebarNav,
@@ -47,8 +48,36 @@ export function AppShell() {
   const { session } = useAuth()
   const { resolvedTheme, setTheme } = useTheme()
 
+  const [showSkeleton, setShowSkeleton] = useState(false)
+  const skeletonStartRef = useRef<number | null>(null)
+  const skeletonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const isLoadingNow = navigation.state === "loading" && !!navigation.location
+
+    if (isLoadingNow) {
+      if (skeletonTimerRef.current) clearTimeout(skeletonTimerRef.current)
+      skeletonStartRef.current = Date.now()
+      setShowSkeleton(true)
+    } else {
+      const startTime = skeletonStartRef.current
+      const hasStartTime = startTime !== null
+      if (!hasStartTime) return
+      const elapsed = Date.now() - startTime
+      const MIN_DURATION = 1000
+      const remaining = Math.max(0, MIN_DURATION - elapsed)
+      skeletonTimerRef.current = setTimeout(() => {
+        setShowSkeleton(false)
+        skeletonStartRef.current = null
+      }, remaining)
+    }
+
+    return () => {
+      if (skeletonTimerRef.current) clearTimeout(skeletonTimerRef.current)
+    }
+  }, [navigation.state, navigation.location])
+
   const pendingPath = navigation.location?.pathname ?? ""
-  const isNavigatingToPage = navigation.state === "loading" && !!navigation.location
 
   function handleThemeToggle() {
     const isDarkTheme = resolvedTheme === "dark"
@@ -130,7 +159,7 @@ export function AppShell() {
 
         <main className="flex-1 overflow-y-auto px-4 py-4 pb-[calc(3.5rem+5rem)] lg:px-6 lg:py-8 lg:pb-16">
           <div className="mx-auto w-full max-w-3xl">
-            {isNavigatingToPage ? <PageSkeleton path={pendingPath} /> : <Outlet />}
+            {showSkeleton ? <PageSkeleton path={pendingPath} /> : <Outlet />}
           </div>
         </main>
       </div>

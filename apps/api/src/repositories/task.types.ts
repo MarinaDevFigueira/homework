@@ -7,10 +7,14 @@ export type TaskRow = {
   createdById: string
   dueDate: Date | null
   completedAt: Date | null
+  startedAt: Date | null
+  finishedAt: Date | null
+  durationMinutes: number | null
   isRecurring: boolean
   recurringTemplateId: string | null
   createdAt: Date
   assignedTo: { name: string }
+  taskResources: { resourceId: string }[]
 }
 
 export type TaskCreateData = {
@@ -26,6 +30,9 @@ export type TaskUpdateData = {
   description?: string
   status?: string
   completedAt?: Date | null
+  startedAt?: Date | null
+  finishedAt?: Date | null
+  durationMinutes?: number | null
   assignedToId?: string
   dueDate?: Date | null
 }
@@ -33,4 +40,11 @@ export type TaskUpdateData = {
 export type TaskListFilters = {
   status?: string
   assignedToId?: string
+}
+
+export type ResourceSnapshotData = {
+  instanceId: string
+  resourceId: string
+  capacityBefore: number
+  capacityAfter: number
 }

@@ -12,7 +12,8 @@
     "./purchase.interface": "./src/purchase.interface.ts",
     "./recurring.enum": "./src/recurring.enum.ts",
     "./recurring.interface": "./src/recurring.interface.ts",
-    "./api.types": "./src/api.types.ts"
+    "./api.types": "./src/api.types.ts",
+    "./resource-category.enum": "./src/resource-category.enum.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

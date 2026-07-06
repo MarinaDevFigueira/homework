@@ -31,13 +31,12 @@ function getStoredTheme(): Theme {
 }
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>("system")
-
-  useEffect(() => {
-    const stored = getStoredTheme()
-    setTheme(stored)
-    applyTheme(stored)
-  }, [])
+  const [theme, setTheme] = useState<Theme>(() => {
+    const isServer = typeof window === "undefined"
+    if (isServer) return "system"
+    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null
+    return stored ?? "system"
+  })
 
   useEffect(() => {
     applyTheme(theme)
