@@ -12,4 +12,5 @@ export default [
     route("recorrentes",    "routes/recorrentes.tsx"),
     route("configuracoes",  "routes/configuracoes.tsx"),
   ]),
+  route("*", "routes/$.tsx"),
 ] satisfies RouteConfig
